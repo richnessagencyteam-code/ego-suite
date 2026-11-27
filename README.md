@@ -2,122 +2,140 @@
   <img src="EGOicon.png" alt="EGO Suite Logo" width="110" />
   <h1>EGO Suite</h1>
   <p><strong>Unified Open-Source AppSec &amp; Vulnerability Auditing Orchestrator for Linux</strong></p>
-  <p>منصة أمان محلية موحدة تجمع أشهر أدوات الفحص الأمني مفتوحة المصدر في مكان واحد — تدعم فحص المواقع الحية (URL)، المشاريع المحلية (Local Path)، ومستودعات GitHub مباشرة، مع تقارير مجمعة وتتبع إعادة الاختبار (Re-test).</p>
+  <p>
+    A portable, AI-ready local security auditing platform that unifies 20 open-source security tools into one dashboard and CLI — supporting live URLs (DAST), local project folders (SAST/SCA/Secrets/IaC), and direct GitHub repository scanning with consolidated reporting and Re-test diffing.
+  </p>
 </div>
 
 ---
 
-## المميزات الرئيسية (Key Features)
+## Key Features
 
-- **ثلاثة أوضاع للفحص في واجهة واحدة:**
-  - **فحص الروابط الحية (`URL / DAST`):** للمواقع المستضافة على الإنترنت بدون الحاجة لنسخة محلية.
-  - **فحص المشاريع المحلية (`Local / SAST + SCA + Secrets + IaC`):** تحليل الكود المصدري والمكتبات والأسرار المسربة وحاويات Docker على جهازك.
-  - **ربط حساب GitHub (`GitHub Integration`):** اختيار أي مستودع (عام أو خاص) من حسابك ليتم سحبه سطحياً (`shallow clone`) وفحصه تلقائياً دون تخزين التوكن في `.git/config`.
-- **تثبيت ذاتي ومحمول على Linux (`ego-setup.sh`):**
-  - ينشئ بيئة معزولة بالكامل (`.venv/`, `.node_tools/`, `bin/`, `data/`) داخل مجلد المشروع، مما يجعل نقله وتحديثه بين عدة أجهزة Linux أمراً فورياً.
-- **شريط تقدم مباشر ووقت متبقي (`Live Progress & ETA`):**
-  - متابعة حية لكل أداة قيد التشغيل، النسبة المئوية، الوقت المنقضي، والوقت المتبقي التقريبي.
-- **توحيد النتائج وإعادة الاختبار (`Unified Schema & Re-test Diffing`):**
-  - توحيد مخرجات `SARIF` و`JSON` في قاعدة بيانات SQLite مع بصمة فريدة (`fingerprint`) لكل ثغرة، ومقارنة تلقائية عند إعادة الاختبار لإظهار الثغرات المحلولة (`Fixed`) والجديدة (`New`).
-- **تقارير مجمعة واحترافية:**
-  - تصدير فوري بصيغتي **HTML** و**Markdown**، مع إمكانية إدارة حالة كل ثغرة أو حذف التقارير القديمة.
-- **دعم الذكاء الاصطناعي والـ AI Skills (`AI-Ready CLI & Skill`):**
-  - يتضمن ملف Skill جاهز ([skills/ego-suite/SKILL.md](skills/ego-suite/SKILL.md)) وأوامر CLI مهيكلة (`ego scan --wait --json` و`/api/scans/{id}/ai-report`) تتيح لوكيل الذكاء الاصطناعي تشغيل الفحوصات بنفسه، قراءة التقارير المهيكلة، إصلاح الثغرات في الكود، وإعادة الاختبار تلقائياً.
-- **واجهة مميزة (`Yellow & Black Theme`):**
-  - واجهة ويب عربية (RTL) عالية التباين باللونين الأصفر والأسود، بالإضافة إلى اختصار سطح مكتب وأيقونة في قائمة تطبيقات Linux.
+- **Three Scanning Modes in One Place:**
+  - **Live URL Scanning (`URL / DAST`):** Audit deployed websites and APIs without needing local source code.
+  - **Local Project Scanning (`Local / SAST + SCA + Secrets + IaC`):** Analyze source code, dependencies, leaked secrets, and Docker/IaC configurations on your machine.
+  - **GitHub Account Integration (`GitHub Mode`):** Connect your GitHub account via Personal Access Token, browse your public and private repositories, and shallow-clone (`git clone --depth 1`) any repo for automated scanning without storing credentials in `.git/config`.
+- **AI Agent Collaboration (`AI-Ready CLI, API & Skill`):**
+  - Ships with a ready-to-use Agent Skill ([skills/ego-suite/SKILL.md](skills/ego-suite/SKILL.md)) so AI coding assistants (such as Antigravity) can autonomously run scans, read structured AI-JSON reports, fix vulnerabilities in code, and re-test to verify closure.
+  - Includes synchronous AI CLI commands (`ego scan --wait --json`, `ego report <id> --json`) and a dedicated HTTP endpoint (`GET /api/scans/{id}/ai-report`).
+- **Portable Linux Self-Bootstrapper (`ego-setup.sh`):**
+  - Installs isolated Python (`.venv/`), Node.js (`.node_tools/`), and standalone CLI binaries (`bin/`) inside the project folder so you can move and sync across multiple Linux machines effortlessly.
+- **Live Progress Bar & ETA:**
+  - Real-time per-tool execution tracking, percentage progress, elapsed time, and dynamic estimated time remaining (ETA).
+- **Unified Schema & Re-test Diffing:**
+  - Normalizes `SARIF` and `JSON` outputs into SQLite with unique finding fingerprints, automatically tracking `New`, `Open`, and `Fixed` issues across repeat scans.
+- **Consolidated Reports & Management:**
+  - Exportable **HTML** and **Markdown** reports, finding status management (`Open`, `In Progress`, `Fixed`, `False Positive`), and one-click report deletion.
+- **Distinct Yellow & Black UI + Linux Desktop Entry:**
+  - High-contrast Yellow & Black web dashboard (`http://127.0.0.1:8787`) with an installed Linux `.desktop` launcher and `EGOicon.png`.
 
 ---
 
-## الأدوات المدمجة (20 أداة آمنة ومفتوحة المصدر)
+## Integrated Open-Source Tools (20 Tools)
 
-| الفئة | الأدوات | الوظيفة |
+| Category | Tools | Purpose |
 | :--- | :--- | :--- |
-| **DAST (روابط حية)** | `ego-http-audit` (مدمج), `OWASP ZAP`, `Nuclei`, `testssl.sh`, `Nikto`, `Nmap`, `Wapiti`, `httpx` | فحص ترويسات الأمان، شهادات SSL/TLS، المنافذ المفتوحة، وثغرات الويب الشائعة |
-| **SAST (تحليل الكود)** | `Semgrep`, `Bandit`, `ESLint Security`, `Bearer CLI`, `SonarScanner` | اكتشاف الثغرات والأنماط البرمجية غير الآمنة في الكود المصدري |
-| **SCA (المكتبات)** | `Trivy`, `OSV-Scanner`, `Retire.js`, `pip-audit & npm audit` | فحص الاعتماديات والمكتبات لاكتشاف الثغرات المعروفة (CVEs) |
-| **Secrets (الأسرار)** | `Gitleaks`, `TruffleHog` | كشف مفاتيح API وكلمات المرور المسربة في الكود وتاريخ Git |
-| **IaC (البنية التحتية)** | `Checkov` | فحص ملفات `Dockerfile`, `Terraform`, `Kubernetes`, وملفات CI/CD |
+| **DAST (Live URLs)** | `ego-http-audit` (Built-in), `OWASP ZAP`, `Nuclei`, `testssl.sh`, `Nikto`, `Nmap`, `Wapiti`, `httpx` | HTTP security headers, TLS/SSL ciphers, open ports, and web vulnerability checks |
+| **SAST (Source Code)** | `Semgrep`, `Bandit`, `ESLint Security`, `Bearer CLI`, `SonarScanner` | Static code analysis for insecure patterns and sensitive data flows |
+| **SCA (Dependencies)** | `Trivy`, `OSV-Scanner`, `Retire.js`, `pip-audit & npm audit` | Known CVE detection across package lockfiles and JS libraries |
+| **Secrets Scanning** | `Gitleaks`, `TruffleHog` | Detection of leaked API keys, tokens, and credentials |
+| **IaC & Containers** | `Checkov` | Security misconfiguration checks for `Dockerfile`, `Terraform`, `Kubernetes`, and CI/CD |
 
 ---
 
-## التثبيت والتشغيل على Linux (Quick Start)
+## Quick Start on Linux
 
-### 1. استنساخ المشروع وتشغيل المثبت التلقائي
+### 1. Clone & Run the Portable Installer
 ```bash
 git clone https://github.com/richnessagencyteam-code/ego-suite.git
 cd ego-suite
 chmod +x ego ego-setup.sh
 ./ego-setup.sh
 ```
-سيقوم `ego-setup.sh` تلقائياً بإنشاء البيئة المعزولة، تثبيت أدوات Python وNode.js، تنزيل الملفات التنفيذية للأدوات في `bin/`، وإضافة الأمر العالمي `ego` وأيقونة التطبيق في قائمة النظام.
+`ego-setup.sh` automatically creates `.venv/`, installs Python & Node.js tools, downloads portable Linux binaries into `bin/`, installs the global `ego` command in `~/.local/bin/ego`, registers the desktop launcher with `EGOicon.png`, and installs the AI Skill into `~/.gemini/config/skills/ego-suite/SKILL.md`.
 
-*(اختياري) لتفعيل أداتي Docker (`owasp-zap` و`sonarqube-scanner`):*
+*(Optional) Pull Docker images for container-based scanners (`owasp-zap` & `sonarqube-scanner`):*
 ```bash
 sudo docker pull ghcr.io/zaproxy/zaproxy:stable
 sudo docker pull sonarqube:community
 ```
 
-### 2. تشغيل البرنامج
-من أي مجلد في الطرفية:
+### 2. Launch EGO Suite
+From any directory in your terminal:
 ```bash
 ego
 ```
-أو لتشغيله في الخلفية وفتح المتصفح تلقائياً:
+Or launch in the background and open your browser automatically:
 ```bash
 ego --open
 ```
-ثم افتح المتصفح على: `http://127.0.0.1:8787` (أو ابحث عن **EGO Suite** في قائمة تطبيقات Linux).
+Then open `http://127.0.0.1:8787` (or search for **EGO Suite** in your Linux application launcher).
 
 ---
 
-## التحديث على باقي أجهزتك (Multi-Machine Sync)
-بفضل فصل ملفات البيانات (`data/`) والبيئة المحلية (`.venv/`, `bin/`) عن الكود عبر `.gitignore`، يمكنك تحديث أي جهاز بسطر واحد دون فقدان تقاريرك أو إعداداتك:
+## Updating Across Multiple Machines
+Because runtime data (`data/`), virtual environments (`.venv/`, `.node_tools/`), and downloaded binaries (`bin/`) are excluded via `.gitignore`, you can update any of your Linux machines in one command without losing scan history or settings:
 ```bash
 ego update
 ```
 
 ---
 
-## التشغيل عبر الذكاء الاصطناعي (AI Agent & Skill Mode)
-يمكن لأي وكيل ذكاء اصطناعي (مثل Antigravity) استخدام المهارة المدمجة `skills/ego-suite/SKILL.md` لتشغيل الفحوصات واستلام تقارير JSON سهلة القراءة:
-```bash
-# فحص رابط أو مشروع محلي والانتظار حتى صدور التقرير المهيكل للـ AI
-ego scan --name "My App" --path "/path/to/project" --wait --json
+## AI Agent Collaboration (Autonomous Audit -> Fix -> Re-test)
 
-# أو جلب تقرير فحص سابق بصيغة AI-JSON
-ego report 1 --json
-```
+**EGO Suite** is designed to work hand-in-hand with AI coding agents:
+
+1. **Agent Skill Discovery:** [skills/ego-suite/SKILL.md](skills/ego-suite/SKILL.md) teaches AI agents how to check tool readiness, invoke scans, interpret `ai-report` output, and verify fixes.
+2. **AI-Optimized CLI:**
+   ```bash
+   # List available tools as JSON
+   ego tools --json
+
+   # Run a scan, wait for completion, and output a structured AI-JSON report
+   ego scan --name "My App" --path "/path/to/project" --wait --json
+
+   # Scan a GitHub repository directly
+   ego scan --name "My Repo" --repo "owner/repo" --wait --json
+
+   # Fetch an AI-readable report for any previous scan
+   ego report 1 --json
+   ```
+3. **AI-Report HTTP Endpoint:**
+   - `GET /api/scans/{scan_id}/ai-report` returns `diff` (`total`, `open`, `new`, `fixed`), `severity_counts`, `tools_execution` status per tool, and `actionable_findings` sorted by severity (`Critical` -> `Info`) with exact `location` (`file:line` or `URL`) and `remediation` guidance.
 
 ---
 
-## هيكل المشروع (Project Structure)
+## Project Structure
 
 ```text
 ego-suite/
-├── ego                  # المشغّل العالمي وأمر التحديث (ego / ego --open / ego update)
-├── ego-setup.sh         # المثبت التلقائي المحمول لنظام Linux
-├── requirements.txt     # اعتماديات الخادم (FastAPI, Uvicorn, Pydantic)
-├── selected-tools.json  # قائمة الأدوات المختارة
-├── tools-catalog.html   # دليل الأدوات التفاعلي المستقل
+├── ego                  # Global launcher & updater (ego / ego --open / ego update / CLI)
+├── ego-setup.sh         # Portable Linux bootstrapper & AI skill installer
+├── requirements.txt     # Server dependencies (FastAPI, Uvicorn, Pydantic)
+├── selected-tools.json  # Selected tool registry
+├── tools-catalog.html   # Standalone interactive tools catalog
+├── skills/
+│   └── ego-suite/
+│       └── SKILL.md     # AI Agent Skill definition
 ├── ego_suite/
-│   ├── server.py        # خادم FastAPI وواجهات API
-│   ├── orchestrator.py  # محرك إدارة الفحوصات وتتبع التقدم والـ ETA
-│   ├── adapters.py      # محولات تشغيل الأدوات والفحص المدمج
-│   ├── normalizer.py    # توحيد مخرجات SARIF / JSON
-│   ├── github_client.py # ربط GitHub وسحب المستودعات بأمان
-│   ├── reporter.py      # مولد تقارير HTML و Markdown
-│   └── db.py            # قاعدة بيانات SQLite ومحرك مقارنة Re-test
+│   ├── server.py        # FastAPI backend & REST API
+│   ├── cli.py           # AI-ready CLI (scan, report, tools, list)
+│   ├── orchestrator.py  # Scan planner, runner & live progress/ETA tracker
+│   ├── adapters.py      # Tool adapters & built-in HTTP security audit
+│   ├── normalizer.py    # SARIF / JSON normalizer & finding fingerprinting
+│   ├── github_client.py # GitHub PAT integration & safe shallow-cloning
+│   ├── reporter.py      # Consolidated HTML & Markdown report generator
+│   └── db.py            # SQLite persistence & Re-test diff engine
 └── web/
-    └── index.html       # واجهة المستخدم (Yellow & Black Dashboard)
+    └── index.html       # Yellow & Black Web Dashboard
 ```
 
 ---
 
-## الاستخدام المسؤول (Responsible Use)
-هذا المشروع مصمم لأغراض **الأمن الدفاعي، مراجعة الكود، واختبار المواقع والتطبيقات التي تملكها أو تملك تصريحاً صريحاً بفحصها فقط**. المطور غير مسؤول عن أي استخدام غير مصرح به.
+## Responsible Use
+EGO Suite is intended strictly for **defensive security auditing, code review, and testing websites or repositories that you own or have explicit authorization to test**.
 
 ---
 
-## الرخصة (License)
-مرخص تحت رخصة [MIT](LICENSE). الأدوات الخارجية يتم استدعاؤها كأدوات مستقلة وتخضع كل أداة لرخصتها الرسمية المفتوحة المصدر.
-
+## License
+Licensed under the [MIT License](LICENSE). External security scanners are invoked as independent tools and remain subject to their respective open-source licenses.
