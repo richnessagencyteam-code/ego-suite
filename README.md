@@ -44,7 +44,7 @@
 
 ### 1. استنساخ المشروع وتشغيل المثبت التلقائي
 ```bash
-git clone https://github.com/richnessagency/ego-suite.git
+git clone https://github.com/richnessagencyteam-code/ego-suite.git
 cd ego-suite
 chmod +x ego ego-setup.sh
 ./ego-setup.sh
