@@ -45,6 +45,10 @@ def _docker_image_present(image: str) -> bool:
 
 TOOL_SPECS: dict[str, dict[str, Any]] = {
     "ego-http-audit": {"bin": "builtin", "category": "DAST", "mode": "url", "builtin": True},
+    "ego-laravel-audit": {"bin": "builtin", "category": "SAST/DAST", "mode": "both", "builtin": True},
+    "ego-wp-audit": {"bin": "builtin", "category": "SAST/DAST", "mode": "both", "builtin": True},
+    "composer-audit": {"bin": "composer", "category": "SCA", "mode": "local"},
+    "wpscan": {"bin": "wpscan", "docker": "wpscanteam/wpscan:latest", "category": "DAST", "mode": "url"},
     "owasp-zap": {"bin": "zaproxy", "docker": "ghcr.io/zaproxy/zaproxy:stable", "category": "DAST", "mode": "url"},
     "nuclei": {"bin": "nuclei", "category": "DAST", "mode": "url"},
     "testssl": {"bin": "testssl.sh", "category": "DAST", "mode": "url"},
@@ -80,7 +84,27 @@ def get_tools_status() -> list[dict[str, Any]]:
             "runtime": "Built-in Python",
             "installCmd": "مدمج تلقائياً",
             "repoUrl": "",
-        }
+        },
+        {
+            "id": "ego-laravel-audit",
+            "name": "EGO Built-in Laravel Security Auditor",
+            "category": "SAST/DAST",
+            "mode": "both",
+            "installed": True,
+            "runtime": "Built-in Python (Laravel)",
+            "installCmd": "مدمج تلقائياً",
+            "repoUrl": "",
+        },
+        {
+            "id": "ego-wp-audit",
+            "name": "EGO Built-in WordPress Security Auditor",
+            "category": "SAST/DAST",
+            "mode": "both",
+            "installed": True,
+            "runtime": "Built-in Python (WordPress)",
+            "installCmd": "مدمج تلقائياً",
+            "repoUrl": "",
+        },
     ]
     for tool in selected:
         tid = tool["id"]
@@ -259,12 +283,173 @@ def run_builtin_http_audit(url: str) -> list[dict[str, Any]]:
     return findings
 
 
-def execute_tool(tool_id: str, target_url: str, local_path: str) -> tuple[list[dict[str, Any]], str]:
+def _probe_url(url: str) -> tuple[int, str, dict[str, str]]:
+    req = urllib.request.Request(url, method="GET", headers={"User-Agent": "EGO-Suite-Auditor/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            body = resp.read(8192).decode("utf-8", errors="replace")
+            headers = {k.lower(): v for k, v in resp.headers.items()}
+            return resp.status, body, headers
+    except urllib.error.HTTPError as exc:
+        return exc.code, "", {}
+    except urllib.error.URLError:
+        return 0, "", {}
+
+
+def run_builtin_laravel_audit(target_url: str, local_path: str) -> list[dict[str, Any]]:
+    """Safe, read-only Laravel security audit for live URLs and local projects."""
+    findings: list[dict[str, Any]] = []
+    if target_url:
+        base = target_url.rstrip("/")
+        checks = [
+            ("/.env", "Exposed Laravel .env File", "Critical", "APP_KEY", "امنع الوصول إلى ملف .env عبر إعدادات Nginx/Apache فوراً وقم بتدوير المفاتيح."),
+            ("/_ignition/health-check", "Laravel Ignition Debug Endpoint Exposed", "High", "", "عطّل APP_DEBUG في الإنتاج وأغلق مسارات Ignition."),
+            ("/telescope", "Laravel Telescope Dashboard Exposed", "Medium", "Telescope", "قصر الوصول إلى Telescope على بيئة local أو بصلاحيات مشرفين."),
+            ("/horizon", "Laravel Horizon Dashboard Exposed", "Medium", "Horizon", "فعّل Horizon::auth() لحماية لوحة Horizon في الإنتاج."),
+            ("/storage/logs/laravel.log", "Exposed Laravel Log File", "High", "Stack trace", "احفظ السجلات خارج public/ أو امنع الوصول إلى /storage/logs/."),
+        ]
+        for path, title, sev, marker, fix in checks:
+            status, body, _ = _probe_url(base + path)
+            if status == 200 and (not marker or marker.lower() in body.lower()):
+                findings.append(
+                    make_finding(
+                        title=title,
+                        severity=sev,
+                        category="DAST",
+                        source_tool="ego-laravel-audit",
+                        location=base + path,
+                        description=f"المسار الحساس `{path}` متاح للعامة (HTTP 200).",
+                        remediation=fix,
+                    )
+                )
+
+    if local_path:
+        root = Path(local_path)
+        env_file = root / ".env"
+        if env_file.exists():
+            txt = env_file.read_text(encoding="utf-8", errors="replace")
+            if "APP_DEBUG=true" in txt:
+                findings.append(
+                    make_finding(
+                        title="APP_DEBUG=true enabled in .env",
+                        severity="High",
+                        category="SAST",
+                        source_tool="ego-laravel-audit",
+                        location=str(env_file),
+                        description="تفعيل APP_DEBUG=true يكشف تتبع الأخطاء ومتغيرات البيئة عند حدوث خطأ.",
+                        remediation="اجعل APP_DEBUG=false في بيئة الإنتاج.",
+                    )
+                )
+            if "APP_KEY=" in txt and len(txt.split("APP_KEY=", 1)[1].splitlines()[0].strip()) < 16:
+                findings.append(
+                    make_finding(
+                        title="Weak or Missing Laravel APP_KEY",
+                        severity="Critical",
+                        category="SAST",
+                        source_tool="ego-laravel-audit",
+                        location=str(env_file),
+                        description="مفتاح التشفير APP_KEY مفقود أو قصير جداً.",
+                        remediation="نفّذ `php artisan key:generate` لتوليد مفتاح قوي.",
+                    )
+                )
+        gitignore = root / ".gitignore"
+        if env_file.exists() and (not gitignore.exists() or ".env" not in gitignore.read_text(encoding="utf-8", errors="replace")):
+            findings.append(
+                make_finding(
+                    title=".env not excluded in .gitignore",
+                    severity="High",
+                    category="Secrets",
+                    source_tool="ego-laravel-audit",
+                    location=str(gitignore),
+                    description="ملف .env موجود ولا يظهر مستثنى داخل .gitignore.",
+                    remediation="أضف `.env` إلى ملف `.gitignore` لمنع تسريب المفاتيح إلى Git.",
+                )
+            )
+    return findings
+
+
+def run_builtin_wp_audit(target_url: str, local_path: str) -> list[dict[str, Any]]:
+    """Safe, read-only WordPress security audit for live URLs and local projects."""
+    findings: list[dict[str, Any]] = []
+    if target_url:
+        base = target_url.rstrip("/")
+        checks = [
+            ("/wp-json/wp/v2/users", "WordPress User Enumeration via REST API", "Medium", '"slug"', "عطّل مسار /wp/v2/users لغير المسجلين أو قيّد REST API."),
+            ("/xmlrpc.php", "WordPress XML-RPC Endpoint Enabled", "Medium", "XML-RPC", "عطّل xmlrpc.php إذا لم تكن تستخدمه لمنع هجمات التخمين وDDoS."),
+            ("/wp-content/debug.log", "Exposed WordPress debug.log", "High", "PHP", "أوقف WP_DEBUG_LOG أو امنع الوصول العام إلى debug.log."),
+            ("/readme.html", "WordPress Version Disclosed via readme.html", "Low", "WordPress", "احذف readme.html أو امنع الوصول إليه من الخادم."),
+            ("/wp-content/uploads/", "Directory Listing Enabled on wp-content/uploads", "Low", "Index of", "أضف `Options -Indexes` في .htaccess أو Nginx لمنع استعراض الملفات."),
+        ]
+        for path, title, sev, marker, fix in checks:
+            status, body, _ = _probe_url(base + path)
+            if status in (200, 405) and (not marker or marker.lower() in body.lower()):
+                findings.append(
+                    make_finding(
+                        title=title,
+                        severity=sev,
+                        category="DAST",
+                        source_tool="ego-wp-audit",
+                        location=base + path,
+                        description=f"تم رصد نقطة ضعف أو كشف معلومات عبر `{path}` (HTTP {status}).",
+                        remediation=fix,
+                    )
+                )
+
+    if local_path:
+        wp_cfg = Path(local_path) / "wp-config.php"
+        if wp_cfg.exists():
+            txt = wp_cfg.read_text(encoding="utf-8", errors="replace")
+            if "define('WP_DEBUG', true)" in txt or 'define("WP_DEBUG", true)' in txt or "define( 'WP_DEBUG', true )" in txt:
+                findings.append(
+                    make_finding(
+                        title="WP_DEBUG enabled in wp-config.php",
+                        severity="High",
+                        category="SAST",
+                        source_tool="ego-wp-audit",
+                        location=str(wp_cfg),
+                        description="تفعيل WP_DEBUG في الإنتاج قد يكشف مسارات السيرفر وأخطاء PHP.",
+                        remediation="اجعل WP_DEBUG مضبوطاً على false في الإنتاج.",
+                    )
+                )
+            if "DISALLOW_FILE_EDIT" not in txt:
+                findings.append(
+                    make_finding(
+                        title="DISALLOW_FILE_EDIT not set in wp-config.php",
+                        severity="Medium",
+                        category="SAST",
+                        source_tool="ego-wp-audit",
+                        location=str(wp_cfg),
+                        description="محرر القوالب والإضافات داخل لوحة تحكم ووردبريس غير معطّل.",
+                        remediation="أضف `define('DISALLOW_FILE_EDIT', true);` داخل wp-config.php.",
+                    )
+                )
+            if "$table_prefix = 'wp_'" in txt or '$table_prefix = "wp_"' in txt:
+                findings.append(
+                    make_finding(
+                        title="Default WordPress Table Prefix (wp_)",
+                        severity="Low",
+                        category="SAST",
+                        source_tool="ego-wp-audit",
+                        location=str(wp_cfg),
+                        description="استخدام بادئة الجداول الافتراضية `wp_` يسهل تخمين أسماء الجداول.",
+                        remediation="استخدم بادئة جداول مخصصة غير افتراضية.",
+                    )
+                )
+    return findings
+
+
+def execute_tool(tool_id: str, target_url: str, local_path: str, stack: str = "general") -> tuple[list[dict[str, Any]], str]:
     """Run an individual tool safely and return (findings, status_note)."""
     if tool_id == "ego-http-audit":
         if not target_url:
             return [], "skipped (no URL)"
         return run_builtin_http_audit(target_url), "ok"
+
+    if tool_id == "ego-laravel-audit":
+        return run_builtin_laravel_audit(target_url, local_path), "ok"
+
+    if tool_id == "ego-wp-audit":
+        return run_builtin_wp_audit(target_url, local_path), "ok"
 
     with tempfile.TemporaryDirectory(prefix="ego_") as tmp:
         out_file = Path(tmp) / "output.sarif"
@@ -273,13 +458,80 @@ def execute_tool(tool_id: str, target_url: str, local_path: str) -> tuple[list[d
             bin_p = _find_binary("semgrep")
             if not bin_p:
                 return [], "not installed"
+            configs = ["--config", "auto"]
+            if stack == "laravel":
+                configs = ["--config", "p/php", "--config", "p/laravel", "--config", "auto"]
+            elif stack == "wordpress":
+                configs = ["--config", "p/php", "--config", "auto"]
             subprocess.run(
-                [bin_p, "scan", "--config", "auto", "--sarif", "-o", str(out_file), local_path],
+                [bin_p, "scan", *configs, "--sarif", "-o", str(out_file), local_path],
                 capture_output=True,
                 timeout=180,
                 check=False,
             )
             return parse_sarif(out_file, "Semgrep", "SAST"), "ok"
+
+        if tool_id == "composer-audit" and local_path:
+            bin_p = _find_binary("composer")
+            lock_file = Path(local_path) / "composer.lock"
+            if not bin_p or not lock_file.exists():
+                return [], "skipped (no composer.lock)"
+            proc = subprocess.run(
+                [bin_p, "audit", "--working-dir", local_path, "--format=json"],
+                capture_output=True,
+                text=True,
+                timeout=90,
+                check=False,
+            )
+            try:
+                cdata = json.loads(proc.stdout or "{}")
+            except json.JSONDecodeError:
+                cdata = {}
+            findings = []
+            for pkg_name, advisories in (cdata.get("advisories") or {}).items():
+                for adv in advisories:
+                    findings.append(
+                        make_finding(
+                            title=f"{pkg_name}: {adv.get('title', adv.get('cve', 'Advisory'))}",
+                            severity=adv.get("severity", "High"),
+                            category="SCA",
+                            source_tool="composer-audit",
+                            location=str(lock_file),
+                            description=f"CVE: {adv.get('cve', 'N/A')} | Affected: {adv.get('affectedVersions', '')}",
+                            remediation=f"حدّث الحزمة `{pkg_name}` عبر `composer update {pkg_name}`.",
+                        )
+                    )
+            return findings, "ok"
+
+        if tool_id == "wpscan" and target_url:
+            bin_p = _find_binary("wpscan")
+            if not bin_p:
+                return [], "not installed"
+            proc = subprocess.run(
+                [bin_p, "--url", target_url, "--format", "json", "--no-banner"],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                check=False,
+            )
+            try:
+                wdata = json.loads(proc.stdout or "{}")
+            except json.JSONDecodeError:
+                wdata = {}
+            findings = []
+            for item in wdata.get("interesting_findings", []):
+                findings.append(
+                    make_finding(
+                        title=f"WPScan: {item.get('type', 'Finding')}",
+                        severity="Info",
+                        category="DAST",
+                        source_tool="WPScan",
+                        location=item.get("url", target_url),
+                        description=item.get("to_s", ""),
+                        remediation="راجع إعدادات ووردبريس وتأكد من إخفاء الملفات الحساسة.",
+                    )
+                )
+            return findings, "ok"
 
         if tool_id == "bandit" and local_path:
             bin_p = _find_binary("bandit")
@@ -336,8 +588,13 @@ def execute_tool(tool_id: str, target_url: str, local_path: str) -> tuple[list[d
             if not bin_p:
                 return [], "not installed"
             jsonl_out = Path(tmp) / "nuclei.jsonl"
+            extra_tags = []
+            if stack == "laravel":
+                extra_tags = ["-tags", "laravel,php"]
+            elif stack == "wordpress":
+                extra_tags = ["-tags", "wordpress,wp-plugin,wpscan"]
             subprocess.run(
-                [bin_p, "-u", target_url, "-etags", "dos,fuzz", "-rl", "20", "-jsonl", "-o", str(jsonl_out), "-silent"],
+                [bin_p, "-u", target_url, *extra_tags, "-etags", "dos,fuzz", "-rl", "20", "-jsonl", "-o", str(jsonl_out), "-silent"],
                 capture_output=True,
                 timeout=240,
                 check=False,

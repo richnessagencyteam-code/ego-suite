@@ -47,6 +47,7 @@ def _run_scan_worker(
     local_path: str,
     tool_ids: list[str],
     github_repo: str = "",
+    stack: str = "general",
 ) -> None:
     all_findings: list[dict[str, Any]] = []
     tool_logs: dict[str, str] = {}
@@ -74,7 +75,7 @@ def _run_scan_worker(
         for tid in tool_ids:
             SCAN_PROGRESS[scan_id]["current_tool"] = tid
             try:
-                findings, status_note = execute_tool(tid, target_url, local_path)
+                findings, status_note = execute_tool(tid, target_url, local_path, stack=stack)
                 all_findings.extend(findings)
                 tool_logs[tid] = f"{status_note} ({len(findings)} findings)"
             except Exception as exc:  # noqa: BLE001
@@ -100,11 +101,13 @@ def start_scan(
     local_path: str = "",
     requested_tools: list[str] | None = None,
     github_repo: str = "",
+    stack: str = "general",
 ) -> dict[str, Any]:
     """Plan and launch an asynchronous security scan."""
     target_url = target_url.strip()
     local_path = local_path.strip()
     github_repo = github_repo.strip()
+    stack = stack if stack in ("general", "laravel", "wordpress") else "general"
     has_local = bool(local_path or github_repo)
 
     if target_url and has_local:
@@ -116,12 +119,13 @@ def start_scan(
 
     installed_tools = get_tools_status()
     if requested_tools:
-        tool_ids = requested_tools
+        tool_ids = list(requested_tools)
     else:
         tool_ids = [
             t["id"]
             for t in installed_tools
             if t["installed"]
+            and t["id"] not in ("ego-laravel-audit", "ego-wp-audit")
             and (
                 mode == "both"
                 or t.get("mode") == mode
@@ -132,12 +136,20 @@ def start_scan(
     if mode in ("url", "both") and "ego-http-audit" not in tool_ids:
         tool_ids.insert(0, "ego-http-audit")
 
+    if stack == "laravel":
+        for lt in ("ego-laravel-audit", "composer-audit"):
+            if lt not in tool_ids:
+                tool_ids.insert(0, lt)
+    elif stack == "wordpress":
+        if "ego-wp-audit" not in tool_ids:
+            tool_ids.insert(0, "ego-wp-audit")
+
     project_id = get_or_create_project(project_name, target_url, local_path or (f"github:{github_repo}" if github_repo else ""))
-    scan_id = create_scan_run(project_id, mode, tool_ids)
+    scan_id = create_scan_run(project_id, mode, tool_ids, stack=stack)
 
     thread = threading.Thread(
         target=_run_scan_worker,
-        args=(scan_id, project_id, project_name, target_url, local_path, tool_ids, github_repo),
+        args=(scan_id, project_id, project_name, target_url, local_path, tool_ids, github_repo, stack),
         daemon=True,
     )
     thread.start()
@@ -146,6 +158,7 @@ def start_scan(
         "scan_id": scan_id,
         "project_id": project_id,
         "mode": mode,
+        "stack": stack,
         "tools": tool_ids,
         "status": "running",
     }

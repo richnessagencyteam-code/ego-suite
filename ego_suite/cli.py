@@ -75,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     p_scan.add_argument("--url", default="", help="Target live URL")
     p_scan.add_argument("--path", default="", help="Local project path")
     p_scan.add_argument("--repo", default="", help="GitHub repo (owner/repo)")
+    p_scan.add_argument("--stack", default="general", choices=["general", "laravel", "wordpress"], help="Target framework stack")
     p_scan.add_argument("--tools", default="", help="Comma-separated tool IDs")
     p_scan.add_argument("--wait", action="store_true", help="Wait for scan completion")
     p_scan.add_argument("--json", action="store_true", help="Output AI-friendly JSON")
@@ -112,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Error: provide --url, --path, or --repo", file=sys.stderr)
             return 1
         req_tools = [x.strip() for x in args.tools.split(",") if x.strip()] or None
-        res = start_scan(args.name, args.url, args.path, req_tools, args.repo)
+        res = start_scan(args.name, args.url, args.path, req_tools, args.repo, args.stack)
         scan_id = res["scan_id"]
 
         if args.wait:
@@ -142,3 +143,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

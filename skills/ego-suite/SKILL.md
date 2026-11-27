@@ -63,3 +63,4 @@ The JSON output contains:
 4. For local/GitHub projects, open the exact `location` (`file:line`), apply the minimal secure fix following `remediation`, and avoid breaking existing functionality.
 5. Re-run the exact same `ego scan` command with `--wait --json` and verify that `diff.fixed` increased and the resolved findings no longer appear in `actionable_findings`.
 6. Summarize the results concisely for the user, including `scan_id`, what was fixed, and any remaining `Medium`/`Low` items.
+

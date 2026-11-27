@@ -153,6 +153,22 @@
       "mode": "local",
       "installCmd": "pip install checkov",
       "repoUrl": "https://github.com/bridgecrewio/checkov"
+    },
+    {
+      "id": "composer-audit",
+      "name": "Composer Audit (Laravel / PHP)",
+      "category": "SCA",
+      "mode": "local",
+      "installCmd": "composer --version",
+      "repoUrl": "https://getcomposer.org"
+    },
+    {
+      "id": "wpscan",
+      "name": "WPScan (WordPress)",
+      "category": "DAST",
+      "mode": "url",
+      "installCmd": "gem install wpscan",
+      "repoUrl": "https://github.com/wpscanteam/wpscan"
     }
   ]
 }

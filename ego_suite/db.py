@@ -34,6 +34,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER NOT NULL,
                 mode TEXT NOT NULL,
+                stack TEXT NOT NULL DEFAULT 'general',
                 tools_used TEXT NOT NULL,
                 status TEXT NOT NULL,
                 started_at TEXT NOT NULL,
@@ -63,6 +64,9 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_findings_fp ON findings(project_id, fingerprint);
             """
         )
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(scan_runs)").fetchall()}
+        if "stack" not in cols:
+            conn.execute("ALTER TABLE scan_runs ADD COLUMN stack TEXT NOT NULL DEFAULT 'general'")
 
 
 def now_iso() -> str:
@@ -84,11 +88,11 @@ def get_or_create_project(name: str, target_url: str = "", local_path: str = "")
         return int(cur.lastrowid)
 
 
-def create_scan_run(project_id: int, mode: str, tools_used: list[str]) -> int:
+def create_scan_run(project_id: int, mode: str, tools_used: list[str], stack: str = "general") -> int:
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO scan_runs (project_id, mode, tools_used, status, started_at) VALUES (?, ?, ?, ?, ?)",
-            (project_id, mode, ",".join(tools_used), "running", now_iso()),
+            "INSERT INTO scan_runs (project_id, mode, stack, tools_used, status, started_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, mode, stack, ",".join(tools_used), "running", now_iso()),
         )
         return int(cur.lastrowid)
 

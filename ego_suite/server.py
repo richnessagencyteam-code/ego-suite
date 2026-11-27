@@ -23,6 +23,7 @@ class ScanRequest(BaseModel):
     target_url: str = ""
     local_path: str = ""
     github_repo: str = ""
+    stack: str = "general"
     tools: list[str] | None = None
 
 
@@ -86,7 +87,7 @@ def scans_create(req: ScanRequest) -> dict:
         raise HTTPException(status_code=400, detail="يجب إدخال رابط الموقع أو مسار المشروع المحلي أو مستودع GitHub.")
     if req.local_path.strip() and not Path(req.local_path.strip()).exists():
         raise HTTPException(status_code=400, detail="المسار المحلي غير موجود على الجهاز.")
-    return start_scan(req.project_name, req.target_url, req.local_path, req.tools, req.github_repo)
+    return start_scan(req.project_name, req.target_url, req.local_path, req.tools, req.github_repo, req.stack)
 
 
 @app.get("/api/github/status")
